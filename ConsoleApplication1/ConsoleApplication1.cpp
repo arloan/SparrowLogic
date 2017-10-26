@@ -173,6 +173,7 @@ void CreateHuSegmentTable(HuSegmentMap & hst_no_magic, HuSegmentMap & hst_1magic
 		int is_258 = (i == 2 || i == 5 || i == 8);
 		HU_SEGMENT_INFO inf = { 0, 1, is_258 };
 		hst_no_magic[signature] = inf;
+		hst_no_magic[signature + SparrowTingHuLogic::FENG_SIGNATURE_CAP] = inf; // 风牌专用
 
 		pool[i-1] -= 2;
 		CreateHuSegmentXiang(pool, 4, 1, 1, 1, signature, i, hst_no_magic);
@@ -297,10 +298,10 @@ void TestTingHuLogic()
 	// 可以打5饼，听3饼、6饼
 	// 可以打6饼，听4、7饼
 	//uint8_t hand_cards[] = { 0x03, 0x03, 0x05, 0x05, 0x26 };
-	uint8_t hand_cards[] = { 0x03, 0x03, 0x05, 0x05, 0x05, 0x13, 0x26, 0x27 };
+	uint8_t hand_cards[] = { 0x02, 0x03, 0x05, 0x07, 0x08, 0x09, 0x16, 0x18, 0x21, 0x22, 0x23, 0x32, 0x32, 0x11 };
 
-	uint8_t magic = 0x05;
-	bool use_feng = false;
+	uint8_t magic = 0x32;
+	bool use_feng = true;
 	std::map<uint8_t, std::vector<uint8_t>> result;
 	ms_begin = GetTickCount();
 	SparrowTingHuLogic & sthl = SparrowTingHuLogic::Instance();

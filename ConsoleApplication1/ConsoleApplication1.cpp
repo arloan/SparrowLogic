@@ -290,22 +290,23 @@ void DumpCardList(uint8_t * card_data_list, int count)
 void TestTingHuLogic()
 {
 	DWORD ms_begin = GetTickCount();
-	SparrowTingHuLogic::Init("hst.map", "hst-1magic.map", "hst-2magic.map", "hst-3magic.map");
+	//SparrowTingHuLogic::Init("hst.map", "hst-1magic.map", "hst-2magic.map", "hst-3magic.map");
 	DWORD ms_end = GetTickCount();
 	dout("加载总耗时：%.3f 秒。\n", (ms_end-ms_begin)/1000.0);
 	
 	// 可以打3饼，听4饼
 	// 可以打5饼，听3饼、6饼
 	// 可以打6饼，听4、7饼
-	//uint8_t hand_cards[] = { 0x03, 0x03, 0x05, 0x05, 0x26 };
-	uint8_t hand_cards[] = { 0x02, 0x03, 0x05, 0x07, 0x08, 0x09, 0x16, 0x18, 0x21, 0x22, 0x23, 0x32, 0x32, 0x11 };
+	uint8_t hand_cards[] = { 0x03, 0x03, 0x05, 0x05, 0x11, 0x11, 0x18, 0x18, 0x19, 0x19, 0x21, 0x22, 0x23, 0x24 };
+	//uint8_t hand_cards[] = { 0x02, 0x03, 0x05, 0x07, 0x08, 0x09, 0x16, 0x18, 0x21, 0x22, 0x23, 0x32, 0x32, 0x11 };
 
-	uint8_t magic = 0x32;
+	uint8_t magic = 0x24;
 	bool use_feng = true;
 	std::map<uint8_t, std::vector<uint8_t>> result;
 	ms_begin = GetTickCount();
 	SparrowTingHuLogic & sthl = SparrowTingHuLogic::Instance();
-	bool ke_ting = sthl.CalcTingableCardInfo(hand_cards, sizeof(hand_cards)/sizeof(hand_cards[0]), magic, false, use_feng, result);
+	//bool ke_ting = sthl.CalcTingableCardInfo(hand_cards, sizeof(hand_cards)/sizeof(hand_cards[0]), magic, false, use_feng, result);
+	bool ke_ting = sthl.CalcSevenPairTingInfo(hand_cards, sizeof(hand_cards)/sizeof(hand_cards[0]), magic, use_feng, result);
 	ms_end = GetTickCount();
 
 	dout("\n混子：%s\n能胡风牌：%s\n\n手牌：\n", magic ? CardName(magic) : "[无]", use_feng ? "是" : "否");

@@ -25,6 +25,7 @@
 
 #define MJ_MAX_INDEX	34
 #define MJ_FENG_COUNT	7
+#define MJ_MAX_HANDCARDS 14
 
 //#ifdef __GNU_C__
 //#define OPTFUN __attribute__((optimize(2)))
@@ -115,6 +116,158 @@ public:
     }
     
 public:
+    void MergeTingInfo(std::map<uint8_t, std::vector<uint8_t>> & tf1, const std::map<uint8_t, std::vector<uint8_t>> & tf2)
+    {
+        if (tf2.size() == 0) return;
+        
+        for (std::map<uint8_t, std::vector<uint8_t>>::const_iterator itr = tf2.begin(); itr != tf2.end(); itr++)
+        {
+            if (tf1.count(itr->first) == 0)
+            {
+                tf1[itr->first] = itr->second;
+            }
+            else
+            {
+                MergeTingList(tf1[itr->first], itr->second);
+            }
+        }
+    }
+    
+    void MergeTingList(std::vector<uint8_t> & tl1, const std::vector<uint8_t> & tl2)
+    {
+        if (tl2.size() == 0) return;
+        
+        std::map<uint8_t, bool> pool;
+        for (uint8_t u : tl1)
+        {
+            pool[u] = true;
+        }
+        
+        for (uint8_t u : tl2)
+        {
+            if (pool.count(u) == 0)
+            {
+                tl1.push_back(u);
+            }
+        }
+    }
+    
+    // 判断手牌打出分别打出哪张牌能听七对
+    // 参数含义与 CalcTingableCardInfo 相同
+    bool OPTFUN CalcSevenPairTingInfo(
+                                      uint8_t * hand_cards,
+                                      int card_count,
+                                      uint8_t magic,
+                                      bool use_feng, // 包括风牌
+                                      std::map<uint8_t, std::vector<uint8_t>> & result)
+    {
+        if (card_count != MJ_MAX_HANDCARDS) return false; // 七对不能下坎
+        
+        int magic_count = 0;
+        std::map<uint8_t, int8_t> counted_cards;
+        for (int i=0; i<card_count; ++i)
+        {
+            uint8_t card = hand_cards[i];
+            if (card == magic)
+            {
+                magic_count++;
+                continue;
+            }
+            counted_cards[card]++;
+        }
+        
+        std::map<uint8_t, int8_t> singled_cards;
+        std::map<uint8_t, int8_t> doubled_cards;
+        for (std::map<uint8_t, int8_t>::const_iterator itr = counted_cards.begin(); itr != counted_cards.end(); itr++)
+        {
+            if (itr->second % 2 == 0)
+                doubled_cards[itr->first] = itr->second;
+            else
+                singled_cards[itr->first] = itr->second;
+        }
+        
+        // 总数14张，diff必然为偶数
+        int diff = ((int)singled_cards.size()) - magic_count;
+        if (diff > 2) return false;
+        
+        if (diff == 2)
+        {
+            // 打出任意一张落单牌可以胡所有其他落单牌
+            for (std::map<uint8_t, int8_t>::const_iterator itr = singled_cards.begin(); itr != singled_cards.end(); itr++)
+            {
+                std::vector<uint8_t> & ting_list = result[itr->first];
+                for (std::map<uint8_t, int8_t>::const_iterator itr2 = singled_cards.begin(); itr2 != singled_cards.end(); itr2++)
+                {
+                    if (itr2->first != itr->first) ting_list.push_back(itr2->first);
+                }
+            }
+
+			return true;
+        }
+        
+		// diff == 0 or diff < 0
+        // 其实可以胡牌，不过如果用户不想胡，那还是要计算听牌信息
+
+		// 无癞子情况
+		if (magic == 0 || magic_count == 0)
+		{
+			// 可打出任意一张未落单牌并听该张牌
+			PlayOutAnyCardAndTingItself(doubled_cards, result);
+			return true;
+		}
+
+		uint8_t full_cards[] = {0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x31,0x32,0x33,0x34,0x35,0x36,0x37};
+		int max_cards = sizeof(full_cards)/sizeof(full_cards[0]);
+		if (!use_feng) max_cards = max_cards - MJ_FENG_COUNT;
+        if (diff < 0)
+        {
+            // 打出任意一张手牌可以胡任意牌
+			counted_cards[magic] = magic_count;
+			for (std::map<uint8_t, int8_t>::const_iterator itr = counted_cards.begin(); itr != counted_cards.end(); itr++)
+			{
+				std::vector<uint8_t> & r = result[itr->first];
+				for (int n = 0; n < max_cards; ++n)
+				{
+					r.push_back(full_cards[n]);
+				}
+			}
+			counted_cards.erase(magic);
+        }
+        else
+        {
+			// 打出任何一张落单牌则可以胡任意牌；
+			for (std::map<uint8_t, int8_t>::const_iterator itr = singled_cards.begin(); itr != singled_cards.end(); itr++)
+			{
+				int max_cards = use_feng ? 34 : 27;
+				std::vector<uint8_t> & r = result[itr->first];
+				for (int n = 0; n < max_cards; ++n)
+				{
+					r.push_back(full_cards[n]);
+				}
+			}
+
+			// 打出任意一张非单牌可以胡本身及任意一张落单牌
+			for (std::map<uint8_t, int8_t>::const_iterator itr = doubled_cards.begin(); itr != doubled_cards.end(); itr++)
+			{
+				std::vector<uint8_t> & r = result[itr->first];
+				r.push_back(itr->first);
+				for (std::map<uint8_t, int8_t>::const_iterator itr2 = singled_cards.begin(); itr2 != singled_cards.end(); itr2++)
+				{
+					r.push_back(itr2->first);
+				}
+			}
+
+            // 打出一张赖子牌可以胡任意落单牌
+            std::vector<uint8_t> & r = result[magic];
+            for (std::map<uint8_t, int8_t>::const_iterator itr = singled_cards.begin(); itr != singled_cards.end(); itr++)
+            {
+                r.push_back(itr->first);
+            }
+        }
+        
+        return true;
+    }
+    
     // hand_cards/magic: should be card data, not card index
     // 此函数判断,*摸上来*一张牌之后,可以打出哪些牌中的任意一张听牌
     // hand_cards为手牌集合,card_count张数则必然符合 3*n+2
@@ -178,6 +331,14 @@ public:
     }
     
 private:
+    void PlayOutAnyCardAndTingItself(const std::map<uint8_t, int8_t> classified_cards, std::map<uint8_t, std::vector<uint8_t>> & ting_result)
+    {
+        for (std::map<uint8_t, int8_t>::const_iterator itr = classified_cards.begin(); itr != classified_cards.end(); itr++)
+        {
+            ting_result[itr->first] = std::vector<uint8_t>(1, itr->first);
+        }
+    }
+    
     int OPTFUN SignatureOfCardList(const std::vector<uint8_t> & cards, uint8_t added_card)
     {
         int signature = ipow_of_10((added_card & 0x0F) - 1); // ipow_of_10(-1) == 0
